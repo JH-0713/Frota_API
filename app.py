@@ -45,7 +45,6 @@ def gerar_codigo(tipo='nenhum', contagem=0):
 def shutdown_session(exception=None):
     db_session.remove()
 
-
 @app.route('/get_policiais', methods=['GET'])
 def get_policiais():
     """
@@ -115,20 +114,26 @@ def get_viaturas():
             ]
             ```
         """
+    db = db_session()
     try:
-        sql_v = select(Viatura)
-        result_viatura = db_session.execute(sql_v).scalars()
+        sql_v = (
+            select(Viatura,Carro_Modelo)
+            .join(Carro_Modelo,Carro_Modelo.id_carro == Viatura.modelo_id)
+        )
+        result_viatura = db.execute(sql_v).all()
         if not result_viatura:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_v = []
-        for v in result_viatura:
-            lista_v.append(v.serialize())
+        for v,c in result_viatura:
+            lista_v.append({
+                "viatura": v.serialize(),
+                "carro_modelo": c.serialize()
+            })
         return jsonify(lista_v), 200
     except Exception as e:
         db_session.rollback()
         print(f'Error: {e}')
         return jsonify({'msg': str(e)}), 500
-
 
 @app.route('/get_responsaveis', methods=['GET'])
 def get_responsaveis():
@@ -155,12 +160,14 @@ def get_responsaveis():
             ]
             ```
         """
+    db = db_session()
     try:
         sql_r = select(Responsavel)
-        result_responsavel = db_session.execute(sql_r).scalars()
+        result_responsavel = db.execute(sql_r).scalars()
         if not result_responsavel:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_r = []
+        print(result_responsavel)
         for r in result_responsavel:
             lista_r.append(r.serialize())
         return jsonify(lista_r), 200
@@ -195,9 +202,10 @@ def get_itens():
             ]
             ```
         """
+    db = db_session()
     try:
         sql_i = select(Itens_Manutencao)
-        result_itens = db_session.execute(sql_i).scalars()
+        result_itens = db.execute(sql_i).scalars()
         if not result_itens:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_i = []
@@ -238,9 +246,10 @@ def get_checklist():
             ]
             ```
         """
+    db = db_session()
     try:
         checklist_banco = select(Checklist_Turno)
-        result_checklist = db_session.execute(checklist_banco).scalars()
+        result_checklist = db.execute(checklist_banco).scalars()
         if not result_checklist:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_c = []
@@ -281,9 +290,10 @@ def get_ordem():
                 ]
                 ```
             """
+    db = db_session()
     try:
         sql_o = select(Ordem_Servico)
-        result_ordem = db_session.execute(sql_o).scalars()
+        result_ordem = db.execute(sql_o).scalars()
         if not result_ordem:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_o = []
@@ -319,9 +329,10 @@ def get_ordem_itens():
         ]
         ```
     """
+    db = db_session()
     try:
         sql_oi = select(Ordem_Itens)
-        result_ordem_itens = db_session.execute(sql_oi).scalars()
+        result_ordem_itens = db.execute(sql_oi).scalars()
         if not result_ordem_itens:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_oi = []
@@ -357,9 +368,10 @@ def get_carros():
             ]
             ```
         """
+    db = db_session()
     try:
         sql_cr = select(Carro_Modelo)
-        result = db_session.execute(sql_cr).scalars()
+        result = db.execute(sql_cr).scalars()
 
         if not result:
             return jsonify({'msg': "Credenciais invalidas"}), 400
@@ -510,7 +522,7 @@ def post_viatura():
         if result_viatura:
             return jsonify({'msg': "Esta viatura já existe"}), 400
 
-        new_v = Viatura(placa=placa, ano=ano, km_atual=km_atual, prefixo=prefixo, modelo=modelo)
+        new_v = Viatura(placa=placa, ano=ano, km_atual=km_atual, prefixo=prefixo, modelo_id=int(modelo))
         db_session.add(new_v)
         db_session.commit()
 
