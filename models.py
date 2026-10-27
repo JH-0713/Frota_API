@@ -7,13 +7,28 @@ engine = create_engine('mysql+pymysql://root:senaisp@localhost:3306/banco_frota'
 Base = declarative_base()
 db_session = scoped_session(sessionmaker(bind=engine))
 
+class Cargo_Oficial(Base):
+    __tablename__ = 'cargo_oficial'
+    id_cargo = Column(Integer, primary_key=True)
+    nome_cargo = Column(String(255), nullable=False)
+    categoria = Column(String(255), nullable=False)
+
+    def serialize(self):
+        dados = {
+            "id_cargo": self.id_cargo,
+            "nome_cargo": self.nome_cargo,
+            "categoria": self.categoria,
+        }
+
+        return dados
+
 class Policial(Base):
     __tablename__ = 'policial'
     id_policial = Column(Integer, primary_key=True)
     nome = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     senha = Column(Text, nullable=False)
-    cargo_patente = Column(String(125), nullable=False)
+    cargo_patente = Column(Integer, ForeignKey('cargo_oficial.id_cargo'))
     matricula = Column(String(50), nullable=False)
 
     def set_senha_hash(self, senha):
@@ -75,7 +90,7 @@ class Responsavel(Base):
     nome = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     senha = Column(Text, nullable=False)
-    cargo_funcao = Column(String(155), nullable=False)
+    cargo_funcao = Column(Integer, ForeignKey('cargo_oficial.id_cargo'))
 
     def set_senha_hash(self, senha):
         self.senha = generate_password_hash(senha)

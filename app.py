@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from sqlalchemy import select
 from models import Policial, db_session, Viatura, Checklist_Turno, Responsavel, Itens_Manutencao, Ordem_Itens, \
-    Ordem_Servico, Carro_Modelo
+    Ordem_Servico, Carro_Modelo, Cargo_Oficial
 import os
 from dotenv import load_dotenv
 # gera token
@@ -44,6 +44,7 @@ def gerar_codigo(tipo='nenhum', contagem=0):
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
+
 
 @app.route('/get_policiais', methods=['GET'])
 def get_policiais():
@@ -117,14 +118,15 @@ def get_viaturas():
     db = db_session()
     try:
         sql_v = (
-            select(Viatura,Carro_Modelo)
-            .join(Carro_Modelo,Carro_Modelo.id_carro == Viatura.modelo_id)
+            select(Viatura, Carro_Modelo)
+            .join(Carro_Modelo, Carro_Modelo.id_carro == Viatura.modelo_id)
         )
         result_viatura = db.execute(sql_v).all()
-        if not result_viatura:
+        print('asd',result_viatura)
+        if not result_viatura and result_viatura != []:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_v = []
-        for v,c in result_viatura:
+        for v, c in result_viatura:
             lista_v.append({
                 "viatura": v.serialize(),
                 "carro_modelo": c.serialize()
@@ -134,6 +136,7 @@ def get_viaturas():
         db_session.rollback()
         print(f'Error: {e}')
         return jsonify({'msg': str(e)}), 500
+
 
 @app.route('/get_responsaveis', methods=['GET'])
 def get_responsaveis():
@@ -348,26 +351,26 @@ def get_ordem_itens():
 @app.route('/get_carros', methods=['GET'])
 def get_carros():
     """
-          **API para Consulta de Carros**
+      **API para Consulta de Carros**
 
-          ### Endpoint:
-          GET /get_carros
+      ### Endpoint:
+      GET /get_carros
 
-          ### Parametros de Entrada:
-          Não possui parâmetros de entrada.
+      ### Parametros de Entrada:
+      Não possui parâmetros de entrada.
 
-          ### Respostas (JSON):
-          * **200 OK:** Lista de carro_modelo retornada com sucesso.
-            ```json
-            [
-                {
-                    "id_lista": 1,
-                    "item_id": "integre",
-                    "item_id": "integre"
-                }
-            ]
-            ```
-        """
+      ### Respostas (JSON):
+      * **200 OK:** Lista de carro_modelo retornada com sucesso.
+        ```json
+        [
+            {
+                "id_carro": 1,
+                "marca": "string",
+                "modelo": "string"
+            },
+        ]
+        ```
+    """
     db = db_session()
     try:
         sql_cr = select(Carro_Modelo)
@@ -386,6 +389,51 @@ def get_carros():
         db_session.rollback()
         print(f'Error: {e}')
         return jsonify({'msg': str(e)}), 500
+
+
+@app.route('/get_cargos', methods=['GET'])
+def get_cargos():
+    """
+      **API para Consulta de Carros**
+
+      ### Endpoint:
+      GET /get_carros
+
+      ### Parametros de Entrada:
+      Não possui parâmetros de entrada.
+
+      ### Respostas (JSON):
+      * **200 OK:** Lista de carro_modelo retornada com sucesso.
+        ```json
+        [
+            {
+                "id_carro": 1,
+                "marca": "string",
+                "modelo": "string"
+            },
+        ]
+        ```
+    """
+    db = db_session()
+    try:
+        sql_cg = select(Cargo_Oficial)
+        result_cargo = db.execute(sql_cg).scalars()
+
+        if not result_cargo:
+            return jsonify({'msg': "Valores não encontrados"}), 400
+
+        lista_cg = []
+        for cg in result_cargo:
+            lista_cg.append(cg.serialize())
+
+        return jsonify(lista_cg), 200
+    except Exception as e:
+        db.rollback()
+        print(f'Error: {e}')
+        return jsonify({'msg': str(e)}), 500
+    finally:
+        db_session.close()
+
 
 
 @app.route('/post_policial', methods=['POST'])
@@ -446,7 +494,7 @@ def post_policial():
         if result_policia:
             return jsonify({'msg': "Este policial já existe"}), 400
 
-        new_p = Policial(nome=nome, email=email, cargo_patente=cargo_patente, matricula=(matricula))
+        new_p = Policial(nome=nome, email=email, cargo_patente=int(cargo_patente), matricula=matricula)
         new_p.set_senha_hash(senha)
         db_session.add(new_p)
         db_session.commit()
@@ -595,7 +643,7 @@ def post_responsavel():
         if result_responsavel:
             return jsonify({'msg': "Este responsavel já existe"}), 400
 
-        new_p = Responsavel(nome=nome, email=email, cargo_funcao=cargo_funcao)
+        new_p = Responsavel(nome=nome, email=email, cargo_funcao=int(cargo_funcao))
         new_p.set_senha_hash(senha)
         db_session.add(new_p)
         db_session.commit()
@@ -805,7 +853,7 @@ def put_policial(var_id):
             result.nome = nome
             result.email = email
             result.senha = senha
-            result.cargo_patente = cargo_patente
+            result.cargo_patente = int(cargo_patente)
             result.matricula = matricula
             db_session.commit()
             return jsonify({"msg": "Policial atualizado com sucesso!"}), 200
@@ -838,7 +886,7 @@ def put_viatura(var_id):
             result.placa = placa
             result.ano = ano
             result.km_atual = km_atual
-            result.modelo = modelo
+            result.modelo_id = modelo
             db_session.commit()
             return jsonify({"msg": "Viatura atualizado com sucesso!"}), 200
 
@@ -846,7 +894,6 @@ def put_viatura(var_id):
             db_session.rollback()
             print(f'Error: {e}')
             return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/put_responsavel/<var_id>', methods=['PUT'])
@@ -871,7 +918,7 @@ def put_responsavel(var_id):
             result.nome = nome
             result.email = email
             result.senha = senha
-            result.cargo_funcao = cargo_funcao
+            result.cargo_funcao = int(cargo_funcao)
             db_session.commit()
             return jsonify({"msg": "Responsavel atualizado com sucesso!"}), 200
 
@@ -879,7 +926,6 @@ def put_responsavel(var_id):
             db_session.rollback()
             print(f'Error: {e}')
             return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/put_itens_manutencao/<var_id>', methods=['PUT'])
@@ -912,7 +958,6 @@ def put_itens_manutencao(var_id):
             db_session.rollback()
             print(f'Error: {e}')
             return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/put_checklist_turno/<var_id>', methods=['PUT'])
@@ -952,7 +997,6 @@ def put_checklist_turno(var_id):
             return jsonify({'msg': str(e)}), 500
 
 
-
 @app.route('/put_ordem_servico/<var_id>', methods=['PUT'])
 def put_ordem_servico(var_id):
     editar = select(Ordem_Servico).where(Ordem_Servico.id_ordem == int(var_id))
@@ -985,7 +1029,6 @@ def put_ordem_servico(var_id):
             db_session.rollback()
             print(f'Error: {e}')
             return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/put_ordem_itens/<var_id>', methods=['PUT'])
@@ -1070,7 +1113,6 @@ def delete_policial(var_id):
         return jsonify({'msg': str(e)}), 500
 
 
-
 @app.route('/delete_viatura/<var_id>', methods=['DELETE'])
 def delete_viatura(var_id):
     delete = select(Viatura).where(Viatura.id_viatura == int(var_id))
@@ -1087,7 +1129,6 @@ def delete_viatura(var_id):
         print(f'Error: {e}')
         db_session.rollback()
         return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/delete_responsavel/<var_id>', methods=['DELETE'])
@@ -1108,9 +1149,8 @@ def delete_responsavel(var_id):
         return jsonify({'msg': str(e)}), 500
 
 
-
-@app.route('/delete_itens_manutencao/<var_id>', methods=['DELETE'])
-def delete_itens_manutencao(var_id):
+@app.route('/delete_item/<var_id>', methods=['DELETE'])
+def delete_item(var_id):
     delete = select(Itens_Manutencao).where(Itens_Manutencao.id_item == int(var_id))
     result = db_session.execute(delete).scalar_one_or_none()
     if not result:
@@ -1125,7 +1165,6 @@ def delete_itens_manutencao(var_id):
         print(f'Error: {e}')
         db_session.rollback()
         return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/delete_checklist_turno/<var_id>', methods=['DELETE'])
@@ -1146,7 +1185,6 @@ def delete_checklist_turno(var_id):
         return jsonify({'msg': str(e)}), 500
 
 
-
 @app.route('/delete_ordem_servico/<var_id>', methods=['DELETE'])
 def delete_ordem_servico(var_id):
     delete = select(Ordem_Servico).where(Ordem_Servico.id_ordem == int(var_id))
@@ -1165,7 +1203,6 @@ def delete_ordem_servico(var_id):
         return jsonify({'msg': str(e)}), 500
 
 
-
 @app.route('/delete_ordem_itens<var_id>', methods=['DELETE'])
 def delete_ordem_itens(var_id):
     delete = select(Ordem_Itens).where(Ordem_Itens.id_lista == int(var_id))
@@ -1182,7 +1219,6 @@ def delete_ordem_itens(var_id):
         print(f'Error: {e}')
         db_session.rollback()
         return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/pesquisar_policial', methods=['POST'])
@@ -1204,29 +1240,37 @@ def pesquisar_policial():
         return jsonify({'msg': str(e)}), 500
 
 
-
 @app.route('/pesquisar_viatura', methods=['POST'])
 def pesquisar_viatura():
     dados = request.get_json()
     prefixo = dados.get('prefixo')
     if not prefixo:
-        return jsonify({"msg": "Nenhuma viatura encontrado"}), 400
-
+        return jsonify({"msg": "Prefixo não encontrado"}), 400
+    db = db_session()
     try:
-        busca = select(Viatura).where(Viatura.prefixo == f"VTR-{prefixo}")
-        rastreio = db_session.execute(busca).scalars().all()
-        lista = []
-        for r in rastreio:
-            lista.append(r.serialize())
+        busca = (
+            select(Viatura, Carro_Modelo)
+            .join(Carro_Modelo, Carro_Modelo.id_carro == Viatura.modelo_id)
+            .where(Viatura.prefixo == f"VTR-{prefixo}")
+        )
+        rastreio = db.execute(busca).all()
+        if not rastreio:
+            return jsonify("Nenhuma viatura encontrada"), 400
 
-        db_session.commit()
+        lista = []
+        for r,c in rastreio:
+            lista.append({
+                "viatura": r.serialize(),
+                "carro_modelo": c.serialize()
+            })
+
+        db.commit()
         return jsonify(lista), 200
 
     except Exception as e:
         print(f'Error: {e}')
         db_session.rollback()
         return jsonify({'msg': str(e)}), 500
-
 
 
 @app.route('/pesquisar_responsavel', methods=['POST'])
@@ -1252,23 +1296,19 @@ def pesquisar_responsavel():
         return jsonify({'msg': str(e)}), 500
 
 
-
-@app.route('/pesquisar_itens_manutencao', methods=['POST'])
-def pesquisar_itens_manutencao():
+@app.route('/pesquisar_itens', methods=['POST'])
+def pesquisar_itens():
     dados = request.get_json()
-    nome_item = dados.get('nome_item')
-    print('nome_item', nome_item)
-    if not nome_item:
+    item_nome = dados.get('nome_item')
+
+    if not item_nome:
         return jsonify({"msg": "Nenhum item encontrado"}), 400
 
     try:
-        busca = select(Itens_Manutencao).where(Itens_Manutencao.nome_item == nome_item)
+        busca = select(Itens_Manutencao).where(Itens_Manutencao.nome_item.ilike(f'%{item_nome}%'))
         rastreio = db_session.execute(busca).scalars().all()
         lista = []
         for r in rastreio:
-            print(r.nome_item, r.id_item)
-            print(r.serialize())
-
             lista.append(r.serialize())
 
         db_session.commit()
@@ -1281,4 +1321,4 @@ def pesquisar_itens_manutencao():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5005, host='0.0.0.0')
+    app.run(debug=True, port=5002, host='0.0.0.0')
