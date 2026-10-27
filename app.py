@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request
 from sqlalchemy import select
 from models import Policial, db_session, Viatura, Checklist_Turno, Responsavel, Itens_Manutencao, Ordem_Itens, \
-    Ordem_Servico, Carro_Modelo, Cargo_Oficial
+    Ordem_Servico, Carro_Modelo, Cargo_Oficial, Categoria
 import os
 from dotenv import load_dotenv
 # gera token
@@ -122,7 +122,7 @@ def get_viaturas():
             .join(Carro_Modelo, Carro_Modelo.id_carro == Viatura.modelo_id)
         )
         result_viatura = db.execute(sql_v).all()
-        print('asd',result_viatura)
+        print('asd', result_viatura)
         if not result_viatura and result_viatura != []:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_v = []
@@ -207,13 +207,19 @@ def get_itens():
         """
     db = db_session()
     try:
-        sql_i = select(Itens_Manutencao)
-        result_itens = db.execute(sql_i).scalars()
+        sql_i = (
+            select(Itens_Manutencao, Categoria)
+            .join(Categoria, Categoria.id_categoria == Itens_Manutencao.categoria_id)
+        )
+        result_itens = db.execute(sql_i).all()
         if not result_itens:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_i = []
-        for i in result_itens:
-            lista_i.append(i.serialize())
+        for i, c in result_itens:
+            lista_i.append({
+                "item": i.serialize(),
+                "categoria": c.serialize()
+            })
         return jsonify(lista_i), 200
     except Exception as e:
         db_session.rollback()
@@ -434,6 +440,48 @@ def get_cargos():
     finally:
         db_session.close()
 
+@app.route('/get_categorias', methods=['GET'])
+def get_categorias():
+    """
+          **API para Consulta de Carros**
+
+          ### Endpoint:
+          GET /get_carros
+
+          ### Parametros de Entrada:
+          Não possui parâmetros de entrada.
+
+          ### Respostas (JSON):
+          * **200 OK:** Lista de carro_modelo retornada com sucesso.
+            ```json
+            [
+                {
+                    "id_carro": 1,
+                    "marca": "string",
+                    "modelo": "string"
+                },
+            ]
+            ```
+        """
+    db = db_session()
+    try:
+        sql_cg = select(Categoria)
+        result_categ = db.execute(sql_cg).scalars()
+
+        if not result_categ:
+            return jsonify({'msg': "Valores não encontrados"}), 400
+
+        lista_cg = []
+        for cg in result_categ:
+            lista_cg.append(cg.serialize())
+
+        return jsonify(lista_cg), 200
+    except Exception as e:
+        db.rollback()
+        print(f'Error: {e}')
+        return jsonify({'msg': str(e)}), 500
+    finally:
+        db_session.close()
 
 
 @app.route('/post_policial', methods=['POST'])
@@ -1258,7 +1306,7 @@ def pesquisar_viatura():
             return jsonify("Nenhuma viatura encontrada"), 400
 
         lista = []
-        for r,c in rastreio:
+        for r, c in rastreio:
             lista.append({
                 "viatura": r.serialize(),
                 "carro_modelo": c.serialize()

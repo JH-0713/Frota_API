@@ -108,13 +108,23 @@ class Responsavel(Base):
         }
         return dados
 
+class Categoria(Base):
+    __tablename__ = 'categoria'
+    id_categoria = Column(Integer,primary_key=True)
+    nome_categoria = Column(String(255), nullable=False)
+
+    def serialize(self):
+        return {
+            "id_categoria": self.id_categoria,
+            "nome_categoria": self.nome_categoria
+        }
 
 class Itens_Manutencao(Base):
     __tablename__ = 'itens_manutencao'
     id_item = Column(Integer, primary_key=True)
     nome_item = Column(String(255), nullable=False)
     descricao = Column(Text, nullable=False)
-    categoria_falha = Column(Enum('motor','cambio','embreagem','freio','suspensao','direcao','bateria','injecao_eletronica','iluminacao','ar_condicionado','arrefecimento','alimentacao'), nullable=False)
+    categoria_id = Column(Integer,ForeignKey('categoria.id_categoria'))
     valor_unitario = Column(Float, nullable=False)
 
     def serialize(self):
@@ -122,7 +132,7 @@ class Itens_Manutencao(Base):
             "id_item": self.id_item,
             "nome_item": self.nome_item,
             "descricao": self.descricao,
-            "categoria_falha": self.categoria_falha,
+            "categoria_id": self.categoria_id,
             "valor_unitario": self.valor_unitario,
 
         }
