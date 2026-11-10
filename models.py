@@ -83,31 +83,6 @@ class Viatura(Base):
         }
         return dados
 
-
-class Responsavel(Base):
-    __tablename__ = 'responsavel'
-    id_responsavel = Column(Integer, primary_key=True)
-    nome = Column(String(255), nullable=False)
-    email = Column(String(255), nullable=False)
-    senha = Column(Text, nullable=False)
-    cargo_funcao = Column(Integer, ForeignKey('cargo_oficial.id_cargo'))
-
-    def set_senha_hash(self, senha):
-        self.senha = generate_password_hash(senha)
-
-    def check_password_hash(self, senha):
-        return check_password_hash(self.senha, senha)
-
-    def serialize(self):
-        dados = {
-            "id_responsavel": self.id_responsavel,
-            "nome": self.nome,
-            "email": self.email,
-            "senha": self.senha,
-            "cargo_funcao": self.cargo_funcao,
-        }
-        return dados
-
 class Categoria(Base):
     __tablename__ = 'categoria'
     id_categoria = Column(Integer,primary_key=True)
@@ -169,7 +144,7 @@ class Ordem_Servico(Base):
     __tablename__ = 'ordem_servico'
     id_ordem = Column(Integer, primary_key=True)
     viatura_id = Column(Integer, ForeignKey('viatura.id_viatura'))
-    responsavel_id = Column(Integer, ForeignKey('responsavel.id_responsavel'))
+    policial_id = Column(Integer, ForeignKey('policial.id_policial'))
     data_abertura = Column(DateTime, nullable=False, default=func.now())
     data_fechamento = Column(DateTime)
     tipo_manutencao = Column(Enum('preventiva','corretiva'), nullable=False)
@@ -180,7 +155,7 @@ class Ordem_Servico(Base):
         dados = {
             "id_ordem": self.id_ordem,
             "viatura_id": self.viatura_id,
-            "responsavel_id": self.responsavel_id,
+            "policial_id": self.policial_id,
             "data_abertura": self.data_abertura,
             "data_fechamento": self.data_fechamento,
             "tipo_manutencao": self.tipo_manutencao,
