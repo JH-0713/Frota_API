@@ -12,12 +12,14 @@ class Cargo_Oficial(Base):
     id_cargo = Column(Integer, primary_key=True)
     nome_cargo = Column(String(255), nullable=False)
     categoria = Column(String(255), nullable=False)
+    permicao = Column(String(255), nullable=False)
 
     def serialize(self):
         dados = {
             "id_cargo": self.id_cargo,
             "nome_cargo": self.nome_cargo,
             "categoria": self.categoria,
+            "permicao": self.permicao,
         }
 
         return dados
@@ -121,6 +123,10 @@ class Checklist_Turno(Base):
     data_hora = Column(DateTime,default=func.now(), nullable=False)
     nivel_oleo = Column(Enum('alto','medio','baixo'), nullable=False)
     status_pneu = Column(Enum('ok','intermediario','ruim'), nullable=False)
+    giroflex = Column(Enum('ok','falta'), nullable=False)
+    sirene = Column(Enum('ok','falta'), nullable=False)
+    radio = Column(Enum('ok','falta'), nullable=False)
+    kit_emergencia = Column(Enum('ok','falta'), nullable=False)
     km_abertura = Column(Float, nullable=False)
     relatorio_problema = Column(Text, nullable=False)
 
@@ -133,6 +139,10 @@ class Checklist_Turno(Base):
             "data_hora": self.data_hora,
             "nivel_oleo": self.nivel_oleo,
             "status_pneu": self.status_pneu,
+            "giroflex": self.giroflex,
+            "sirene": self.sirene,
+            "radio": self.radio,
+            "kit_emergencia": self.kit_emergencia,
             "km_abertura": self.km_abertura,
             "relatorio_problema": self.relatorio_problema,
 

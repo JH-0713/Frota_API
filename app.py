@@ -1,5 +1,3 @@
-from unittest import result
-
 from flask import Flask, jsonify, request
 from sqlalchemy import select
 from models import Policial, db_session, Viatura, Checklist_Turno, Itens_Manutencao, Ordem_Itens, \
@@ -9,13 +7,25 @@ from dotenv import load_dotenv
 # gera token
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 import random
+# import cloudinary
+# import cloudinary.uploader
+
 
 load_dotenv()
 
 app = Flask(__name__)
 # definir a senha, em produção colocar em local seguro
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 jwt = JWTManager(app)
+
+# # configurar Cloudnary
+# cloudinary.config(
+#     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+#     api_key=os.getenv("CLOUDINARY_API_KEY"),
+#     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+#     secure=True
+# )
 
 # previne gargalo "too many connections"
 """
@@ -27,7 +37,6 @@ jwt = JWTManager(app)
     Como estamos usando o Flask-SQLAlchemy, você nunca precisará escrever esse comando na mão para o banco de dados. 
     A biblioteca já injeta um teardown_appcontext invisível no seu app que faz db.session.remove() automaticamente.
 """
-
 
 def gerar_codigo(tipo='nenhum', contagem=0):
     lista_codigo = []
@@ -704,15 +713,19 @@ def post_checklist():
     policial_id = dados.get('policial_id')
     nivel_oleo = dados.get('nivel_oleo')
     status_pneu = dados.get('status_pneu')
+    giroflex = dados.get('giroflex')
+    sirene = dados.get('sirene')
+    radio = dados.get('radio')
+    kit_emergencia = dados.get('kit_emergencia')
     km_abertura = dados.get('km_abertura')
     relatorio_problema = dados.get('relatorio_problema')
 
-    if not nivel_oleo or not viatura_id or not policial_id or not status_pneu or not km_abertura or not relatorio_problema:
+    if not nivel_oleo or not viatura_id or not policial_id or not status_pneu or not km_abertura or not relatorio_problema or not giroflex or not sirene or not radio or not kit_emergencia:
         return jsonify({'msg': "Credenciais invalidas"}), 400
 
     try:
         new_p = Checklist_Turno(viatura_id=viatura_id, policial_id=policial_id, nivel_oleo=nivel_oleo,
-                                status_pneu=status_pneu, km_abertura=km_abertura, relatorio_problema=relatorio_problema)
+                                status_pneu=status_pneu,giroflex=giroflex,sirene=sirene,radio=radio,kit_emergencia=kit_emergencia, km_abertura=km_abertura, relatorio_problema=relatorio_problema)
         db_session.add(new_p)
         db_session.commit()
 
@@ -1346,4 +1359,4 @@ def pesquisar_itens():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5010, host='0.0.0.0')
+    app.run(debug=True, port=5005, host='0.0.0.0')
