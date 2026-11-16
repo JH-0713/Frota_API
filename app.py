@@ -17,13 +17,6 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 jwt = JWTManager(app)
 
-# # configurar Cloudnary
-# cloudinary.config(
-#     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-#     api_key=os.getenv("CLOUDINARY_API_KEY"),
-#     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-#     secure=True
-# )
 
 # previne gargalo "too many connections"
 """
@@ -53,6 +46,8 @@ def gerar_codigo(tipo='nenhum', contagem=0):
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
+
+
 
 @app.route('/get_policiais', methods=['GET'])
 def get_policiais():
@@ -487,6 +482,7 @@ def info_viatura(var_id):
 @app.route('/log_policial/<var_id>',methods=['GET'])
 def obter_policial(var_id):
     policial = db_session.get(Policial, int(var_id))
+
     if policial:
         return jsonify(policial.serialize()), 200
     return jsonify({"msg": "Policial não encontrada"}), 404
@@ -507,7 +503,6 @@ def login():
     try:
         sql_p = select(Policial).where(Policial.email == email)
         result_policia = db_session.execute(sql_p).scalars().first()
-        print(result_policia)
 
         if result_policia and result_policia.check_password_hash(senha):
             return jsonify({
