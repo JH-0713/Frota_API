@@ -77,19 +77,13 @@ def get_policiais():
     """
     db = db_session()
     try:
-        sql_p = (
-            select(Policial, Cargo_Oficial)
-            .join(Cargo_Oficial, Cargo_Oficial.id_cargo == Policial.cargo_patente)
-        )
-        result_policia = db.execute(sql_p).all()
-        if not result_policia and result_policia != []:
+        sql_p = select(Policial)
+        result_policia = db.execute(sql_p).scalars()
+        if not result_policia:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_p = []
-        for p, c in result_policia:
-            lista_p.append({
-                "policial": p.serialize(),
-                "cargo": c.serialize()
-            })
+        for p in result_policia:
+            lista_p.append(p.serialize())
         return jsonify(lista_p), 200
     except Exception as e:
         db_session.rollback()
@@ -126,20 +120,14 @@ def get_viaturas():
         """
     db = db_session()
     try:
-        sql_v = (
-            select(Viatura, Carro_Modelo)
-            .join(Carro_Modelo, Carro_Modelo.id_carro == Viatura.modelo_id)
-        )
-        result_viatura = db.execute(sql_v).all()
+        sql_v = select(Viatura)
+        result_viatura = db.execute(sql_v).scalars()
         print('asd', result_viatura)
-        if not result_viatura and result_viatura != []:
+        if not result_viatura:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_v = []
-        for v, c in result_viatura:
-            lista_v.append({
-                "viatura": v.serialize(),
-                "carro_modelo": c.serialize()
-            })
+        for v in result_viatura:
+            lista_v.append(v.serialize())
         return jsonify(lista_v), 200
     except Exception as e:
         db_session.rollback()
@@ -174,19 +162,14 @@ def get_itens():
         """
     db = db_session()
     try:
-        sql_i = (
-            select(Itens_Manutencao, Categoria)
-            .join(Categoria, Categoria.id_categoria == Itens_Manutencao.categoria_id)
-        )
-        result_itens = db.execute(sql_i).all()
+        sql_i = select(Itens_Manutencao)
+
+        result_itens = db.execute(sql_i).scalars()
         if not result_itens:
             return jsonify({'msg': "Credenciais invalidas"}), 400
         lista_i = []
-        for i, c in result_itens:
-            lista_i.append({
-                "item": i.serialize(),
-                "categoria": c.serialize()
-            })
+        for i in result_itens:
+            lista_i.append(i.serialize())
         return jsonify(lista_i), 200
     except Exception as e:
         db_session.rollback()
@@ -455,22 +438,15 @@ def info_viatura(var_id):
     db = db_session()
     try:
         print(var_id)
-        sql_vi = (
-            select(Viatura, Carro_Modelo)
-            .join(Carro_Modelo, Carro_Modelo.id_carro == Viatura.modelo_id)
-            .where(Viatura.id_viatura == var_id)
-        )
-        result_via = db.execute(sql_vi).all()
+        sql_vi = select(Viatura).where(Viatura.id_viatura == var_id)
+        result_via = db.execute(sql_vi).scalars()
 
         if not result_via:
             return jsonify({'msg': "Valores não encontrados"}), 400
 
         lista_vi = []
-        for vi,mv in result_via:
-            lista_vi.append({
-                "viatura":vi.serialize(),
-                "carro_modelo":mv.serialize()
-            })
+        for vi in result_via:
+            lista_vi.append(vi.serialize())
 
         return jsonify(lista_vi), 200
     except Exception as e:
@@ -706,19 +682,21 @@ def post_checklist():
     policial_id = dados.get('policial_id')
     nivel_oleo = dados.get('nivel_oleo')
     status_pneu = dados.get('status_pneu')
+
     giroflex = dados.get('giroflex')
     sirene = dados.get('sirene')
     radio = dados.get('radio')
     kit_emergencia = dados.get('kit_emergencia')
     km_abertura = dados.get('km_abertura')
+    status_check = dados.get('status_check')
     relatorio_problema = dados.get('relatorio_problema')
 
-    if not nivel_oleo or not viatura_id or not policial_id or not status_pneu or not km_abertura or not relatorio_problema or not giroflex or not sirene or not radio or not kit_emergencia:
+    if not nivel_oleo or not viatura_id or not policial_id or not status_pneu or not km_abertura or not relatorio_problema or not giroflex or not sirene or not radio or not kit_emergencia or not status_check:
         return jsonify({'msg': "Credenciais invalidas"}), 400
 
     try:
         new_p = Checklist_Turno(viatura_id=viatura_id, policial_id=policial_id, nivel_oleo=nivel_oleo,
-                                status_pneu=status_pneu,giroflex=giroflex,sirene=sirene,radio=radio,kit_emergencia=kit_emergencia, km_abertura=km_abertura, relatorio_problema=relatorio_problema)
+                                status_pneu=status_pneu,giroflex=giroflex,sirene=sirene,radio=radio,kit_emergencia=kit_emergencia, km_abertura=km_abertura, relatorio_problema=relatorio_problema, status_check=status_check)
         db_session.add(new_p)
         db_session.commit()
 
@@ -750,7 +728,7 @@ def post_ordem_servico():
 
     try:
         new_p = Ordem_Servico(viatura_id=viatura_id, policial_id=policial_id, tipo_manutencao=tipo_manutencao,
-                              status_os=status_os, custo_total=custo_total)
+                              status_os=status_os)
         db_session.add(new_p)
         db_session.commit()
 
@@ -1267,18 +1245,11 @@ def pesquisar_policial():
     if not nome:
         return jsonify({"msg": "Nenhum policial encontrado"}), 400
     try:
-        busca = (
-            select(Policial, Cargo_Oficial)
-            .join(Cargo_Oficial, Cargo_Oficial.id_cargo == Policial.cargo_patente)
-            .where(Policial.nome.ilike(f'%{nome}%'))
-        )
-        rastreio = db_session.execute(busca).all()
+        busca = select(Policial).where(Policial.nome.ilike(f'%{nome}%'))
+        rastreio = db_session.execute(busca).scalars()
         lista_p = []
-        for p, c in rastreio:
-            lista_p.append({
-                "policial": p.serialize(),
-                "cargo": c.serialize()
-            })
+        for p in rastreio:
+            lista_p.append(p.serialize())
         return jsonify(lista_p), 200
     except Exception as e:
         print(f'Error: {e}')
@@ -1294,21 +1265,14 @@ def pesquisar_viatura():
         return jsonify({"msg": "Prefixo não encontrado"}), 400
     db = db_session()
     try:
-        busca = (
-            select(Viatura, Carro_Modelo)
-            .join(Carro_Modelo, Carro_Modelo.id_carro == Viatura.modelo_id)
-            .where(Viatura.prefixo == f"VTR-{prefixo}")
-        )
-        rastreio = db.execute(busca).all()
+        busca = select(Viatura).where(Viatura.prefixo == f"VTR-{prefixo}")
+        rastreio = db.execute(busca).scalars()
         if not rastreio:
             return jsonify("Nenhuma viatura encontrada"), 400
 
         lista = []
-        for r, c in rastreio:
-            lista.append({
-                "viatura": r.serialize(),
-                "carro_modelo": c.serialize()
-            })
+        for r, in rastreio:
+            lista.append(r.serialize())
 
         db.commit()
         return jsonify(lista), 200
@@ -1328,19 +1292,12 @@ def pesquisar_itens():
         return jsonify({"msg": "Nenhum item encontrado"}), 400
 
     try:
-        busca = (
-            select(Itens_Manutencao,Categoria)
-            .join(Categoria, Categoria.id_categoria == Itens_Manutencao.categoria_id)
-            .where(Itens_Manutencao.nome_item.ilike(f'%{item_nome}%'))
-        )
+        busca = select(Itens_Manutencao).where(Itens_Manutencao.nome_item.ilike(f'%{item_nome}%'))
 
-        rastreio = db_session.execute(busca).all()
+        rastreio = db_session.execute(busca).scalars()
         lista = []
-        for i,c in rastreio:
-            lista.append({
-                "item":i.serialize(),
-                "categoria": c.serialize()
-            })
+        for i in rastreio:
+            lista.append(i.serialize())
 
         db_session.commit()
         return jsonify(lista), 200
