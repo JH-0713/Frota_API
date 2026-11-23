@@ -14,6 +14,8 @@ class Cargo_Oficial(Base):
     categoria = Column(String(255), nullable=False)
     permicao = Column(String(255), nullable=False)
 
+    policiais = relationship("Policial", back_populates="cargo")
+
     def serialize(self):
         dados = {
             "id_cargo": self.id_cargo,
@@ -33,6 +35,10 @@ class Policial(Base):
     cargo_patente = Column(Integer, ForeignKey('cargo_oficial.id_cargo'))
     matricula = Column(String(50), nullable=False)
 
+    cargo = relationship("Cargo_Oficial", back_populates="policiais")
+    checklists = relationship("Checklist_Turno", back_populates="policial")
+    ordens_servico = relationship("Ordem_Servico", back_populates="policial")
+
     def set_senha_hash(self, senha):
         self.senha = generate_password_hash(senha)
 
@@ -45,7 +51,7 @@ class Policial(Base):
             'nome': self.nome,
             'email': self.email,
             'senha': self.senha,
-            'cargo_patente': self.cargo_patente,
+            'cargo_patente': self.cargo.nome_cargo,
             'matricula': self.matricula,
         }
         return dados
@@ -55,6 +61,8 @@ class Carro_Modelo(Base):
     id_carro = Column(Integer, primary_key=True)
     modelo = Column(String(255), nullable=False)
     marca = Column(String(255), nullable=False)
+
+    viaturas = relationship("Viatura", back_populates="modelo_fk")
 
     def serialize(self):
         return {
@@ -73,6 +81,10 @@ class Viatura(Base):
     modelo_id = Column(Integer, ForeignKey('carro_modelo.id_carro'))
     status_atual = Column(Enum('disponivel','oficina','atencao'),default="disponivel", nullable=False)
 
+    modelo_fk = relationship("Carro_Modelo", back_populates="viaturas")
+    checklists = relationship("Checklist_Turno", back_populates="viatura")
+    ordens_servico = relationship("Ordem_Servico", back_populates="viatura")
+
     def serialize(self):
         dados = {
             "id_viatura": self.id_viatura,
@@ -80,7 +92,7 @@ class Viatura(Base):
             "ano": self.ano,
             "km_atual": self.km_atual,
             "prefixo": self.prefixo,
-            "modelo_id": self.modelo_id,
+            "modelo": self.modelo_fk.modelo,
             "status_atual": self.status_atual,
         }
         return dados
@@ -89,6 +101,8 @@ class Categoria(Base):
     __tablename__ = 'categoria'
     id_categoria = Column(Integer,primary_key=True)
     nome_categoria = Column(String(255), nullable=False)
+
+    itens = relationship("Itens_Manutencao", back_populates="categoria")
 
     def serialize(self):
         return {
@@ -104,12 +118,15 @@ class Itens_Manutencao(Base):
     categoria_id = Column(Integer,ForeignKey('categoria.id_categoria'))
     valor_unitario = Column(Float, nullable=False)
 
+    categoria = relationship("Categoria", back_populates="itens")
+    ordem_itens = relationship("Ordem_Itens", back_populates="item")
+
     def serialize(self):
         dados = {
             "id_item": self.id_item,
             "nome_item": self.nome_item,
             "descricao": self.descricao,
-            "categoria_id": self.categoria_id,
+            "categoria": self.categoria.nome_categoria,
             "valor_unitario": self.valor_unitario,
 
         }
@@ -118,18 +135,23 @@ class Itens_Manutencao(Base):
 class Checklist_Turno(Base):
     __tablename__ = 'checklist_turno'
     id_checklist = Column(Integer, primary_key=True)
-    viatura_id = Column(Integer, ForeignKey('viatura.id_viatura'))
-    policial_id = Column(Integer, ForeignKey('policial.id_policial'))
     data_hora = Column(DateTime,default=func.now(), nullable=False)
+
     nivel_oleo = Column(Enum('alto','medio','baixo'), nullable=False)
     status_pneu = Column(Enum('ok','intermediario','ruim'), nullable=False)
     giroflex = Column(Enum('ok','falta'), nullable=False)
     sirene = Column(Enum('ok','falta'), nullable=False)
     radio = Column(Enum('ok','falta'), nullable=False)
     kit_emergencia = Column(Enum('ok','falta'), nullable=False)
+
     km_abertura = Column(Float, nullable=False)
     relatorio_problema = Column(Text, nullable=False)
 
+    viatura_id = Column(Integer, ForeignKey('viatura.id_viatura'))
+    policial_id = Column(Integer, ForeignKey('policial.id_policial'))
+
+    viatura = relationship("Viatura", back_populates="checklists")
+    policial = relationship("Policial", back_populates="checklists")
 
     def serialize(self):
         dados = {
@@ -161,6 +183,10 @@ class Ordem_Servico(Base):
     status_os = Column(Enum('andamento','concluida'), nullable=False)
     custo_total = Column(Float, nullable=False)
 
+    viatura = relationship("Viatura", back_populates="ordens_servico")
+    policial = relationship("Policial", back_populates="ordens_servico")
+    ordem_itens = relationship("Ordem_Itens", back_populates="ordem")
+
     def serialize(self):
         dados = {
             "id_ordem": self.id_ordem,
@@ -181,6 +207,9 @@ class Ordem_Itens(Base):
     id_lista = Column(Integer, primary_key=True)
     os_id = Column(Integer, ForeignKey('ordem_servico.id_ordem'))
     item_id = Column(Integer, ForeignKey('itens_manutencao.id_item'))
+
+    ordem = relationship("Ordem_Servico", back_populates="ordem_itens")
+    item = relationship("Itens_Manutencao", back_populates="ordem_itens")
 
     def serialize(self):
         dados = {
