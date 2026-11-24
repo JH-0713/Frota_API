@@ -144,6 +144,7 @@ class Checklist_Turno(Base):
     sirene = Column(Enum('ok','falta'), nullable=False)
     radio = Column(Enum('ok','falta'), nullable=False)
     kit_emergencia = Column(Enum('ok','falta'), nullable=False)
+    status_check = Column(Enum('abertura','fechamento'), nullable=False, default='abertura')
     km_abertura = Column(Float, nullable=False)
     relatorio_problema = Column(Text, nullable=False)
 

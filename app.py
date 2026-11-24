@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from sqlalchemy import select
+from sqlalchemy import select, exc, func, desc
 from models import Policial, db_session, Viatura, Checklist_Turno, Itens_Manutencao, Ordem_Itens, \
     Ordem_Servico, Carro_Modelo, Cargo_Oficial, Categoria
 import os
@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 import random
 
-
 load_dotenv()
 
 app = Flask(__name__)
@@ -16,7 +15,6 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-me")
 jwt = JWTManager(app)
-
 
 # previne gargalo "too many connections"
 """
@@ -28,6 +26,7 @@ jwt = JWTManager(app)
     Como estamos usando o Flask-SQLAlchemy, você nunca precisará escrever esse comando na mão para o banco de dados. 
     A biblioteca já injeta um teardown_appcontext invisível no seu app que faz db.session.remove() automaticamente.
 """
+
 
 def gerar_codigo(tipo='nenhum', contagem=0):
     lista_codigo = []
@@ -46,7 +45,6 @@ def gerar_codigo(tipo='nenhum', contagem=0):
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
-
 
 
 @app.route('/get_policiais', methods=['GET'])
@@ -215,6 +213,49 @@ def get_checklist():
         for c in result_checklist:
             lista_c.append(c.serialize())
         return jsonify(lista_c), 200
+    except Exception as e:
+        db_session.rollback()
+        print(f'Error: {str(e)}')
+        return jsonify({'msg': str(e)}), 500
+
+
+@app.route('/get_count_check/<var_id>', methods=['GET'])
+def get_count_check(var_id):
+    db = db_session()
+    try:
+        # faz a contagem de checklists
+        checklist_banco = select(func.count(Checklist_Turno.id_checklist)).where(
+            Checklist_Turno.policial_id == int(var_id)).group_by(Checklist_Turno.viatura_id)
+        result_checklist = db.execute(checklist_banco).scalar()
+
+        print(result_checklist)
+
+        if not result_checklist and result_checklist != None:
+            return jsonify({'msg': "Credenciais invalidas"}), 400
+
+        return jsonify(result_checklist), 200
+
+    except Exception as e:
+        db_session.rollback()
+        print(f'Error: {str(e)}')
+        return jsonify({'msg': str(e)}), 500
+
+
+@app.route('/get_dados_check/<var_id>', methods=['GET'])
+def get_dados_check(var_id):
+    db = db_session()
+    try:
+        # dados dentro das checklists
+        checklist_dados = select(Checklist_Turno).where(Checklist_Turno.policial_id == int(var_id))
+        result_checklist_dados = db.execute(checklist_dados).scalars()
+
+        if not result_checklist_dados:
+            return jsonify({'msg': "Credenciais invalidas"}), 400
+
+        lista_dados = []
+        for checkdados in result_checklist_dados:
+            lista_dados.append(checkdados.serialize())
+        return jsonify(lista_dados), 200
     except Exception as e:
         db_session.rollback()
         print(f'Error: {str(e)}')
@@ -455,13 +496,14 @@ def info_viatura(var_id):
         return jsonify({'msg': str(e)}), 500
 
 
-@app.route('/log_policial/<var_id>',methods=['GET'])
+@app.route('/log_policial/<var_id>', methods=['GET'])
 def obter_policial(var_id):
     policial = db_session.get(Policial, int(var_id))
 
     if policial:
         return jsonify(policial.serialize()), 200
     return jsonify({"msg": "Policial não encontrada"}), 404
+
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -471,7 +513,7 @@ def login():
 
     email = dados.get('email')
     senha = dados.get('senha')
-    print('user',email, senha)
+    print('user', email, senha)
 
     if not email or not senha:
         return jsonify({'msg': "Credenciais invalidas"}), 400
@@ -688,11 +730,25 @@ def post_checklist():
     radio = dados.get('radio')
     kit_emergencia = dados.get('kit_emergencia')
     km_abertura = dados.get('km_abertura')
-    status_check = dados.get('status_check')
     relatorio_problema = dados.get('relatorio_problema')
 
-    if not nivel_oleo or not viatura_id or not policial_id or not status_pneu or not km_abertura or not relatorio_problema or not giroflex or not sirene or not radio or not kit_emergencia or not status_check:
+    if not relatorio_problema:
+        relatorio_problema = "nenhum"
+
+    if not nivel_oleo or not viatura_id or not policial_id or not status_pneu or not km_abertura or not giroflex or not sirene or not radio or not kit_emergencia:
         return jsonify({'msg': "Credenciais invalidas"}), 400
+
+    status_checklist = select(Checklist_Turno.status_check).where(
+        Checklist_Turno.viatura_id == int(viatura_id)).order_by(Checklist_Turno.data_hora.desc())
+    result_check = db_session.execute(status_checklist).scalars().first()
+
+    if not result_check:
+        status_check = "abertura"
+
+    if result_check == "abertura":
+        status_check = "fechamento"
+    elif result_check == "fechamento":
+        status_check = "abertura"
 
     try:
         new_p = Checklist_Turno(viatura_id=viatura_id, policial_id=policial_id, nivel_oleo=nivel_oleo,
@@ -1184,8 +1240,8 @@ def delete_item(var_id):
         return jsonify({'msg': str(e)}), 500
 
 
-@app.route('/delete_checklist_turno/<var_id>', methods=['DELETE'])
-def delete_checklist_turno(var_id):
+@app.route('/delete_checklist/<var_id>', methods=['DELETE'])
+def delete_checklist(var_id):
     delete = select(Checklist_Turno).where(Checklist_Turno.id_checklist == int(var_id))
     result = db_session.execute(delete).scalar_one_or_none()
     if not result:
@@ -1308,5 +1364,13 @@ def pesquisar_itens():
         return jsonify({'msg': str(e)}), 500
 
 
+def enumerar_rota(s=None):
+    if s == None:
+        porta = 5000 + random.randint(5, 7)
+        return porta
+    else:
+        return 5006
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5005, host='0.0.0.0')
+    app.run(debug=True, port=enumerar_rota(1), host='0.0.0.0')
